@@ -41,9 +41,6 @@ $confparser = Config::Scoped->new(file => $conffile);
 
 $confref = $confparser->parse->{_GLOBAL};
 
-use Data::Dumper;
-print Dumper($confref);
-
 for (qw/login api_key/) {
 	unless (exists $confref->{$_} && $confref->{$_} =~ /\S/) {
 		push @errors, "Missing value for $_ in configuration file.";
