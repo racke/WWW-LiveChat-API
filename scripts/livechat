@@ -64,10 +64,12 @@ my (%data, $ops);
 if ($opts{name} && ! $opts{id}) {
 	# check whether record exists already
 	$ops = $lcapi->call_function($function);
-	
-	for my $ref (@$ops) {
-		if ($ref->{name} eq $opts{name}) {
-			$opts{id} = $ref->{id};
+
+	if (ref($ops) eq 'ARRAY') {
+		for my $ref (@$ops) {
+			if ($ref->{name} eq $opts{name}) {
+				$opts{id} = $ref->{id};
+			}
 		}
 	}
 }
