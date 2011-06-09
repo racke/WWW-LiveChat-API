@@ -14,7 +14,8 @@ use WWW::LiveChat::API;
 my %opts = (id => '', name => '', email => '', login => '', password => '');
 my $whandler = $SIG{__WARN__};
 $SIG{__WARN__} = sub {print STDERR "$0: @_";};
-unless (GetOptions (\%opts, 'id=s', 'name=s', 'email=s', 'login=s', 'password=s')) {
+unless (GetOptions (\%opts, 'delete', 'id=s', 'name=s', 'email=s',
+					'login=s', 'password=s')) {
 	exit 1;
 }
 $SIG{__WARN__} = $whandler;
@@ -77,7 +78,10 @@ for my $var (qw/name email login password/) {
 	}
 }
 
-if (keys %data) {
+if ($opts{delete}) {
+	$ops = $lcapi->call_function($function, $opts{id}, undef);
+}
+elsif (keys %data) {
 	$data{id} = $opts{id};
 	if ($function eq 'operators'
 		&& ! $opts{id} && ! $opts{password}) {
