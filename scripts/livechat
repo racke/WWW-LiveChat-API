@@ -1,0 +1,103 @@
+#! /usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Config::Scoped;
+use File::HomeDir;
+use Getopt::Long;
+use Data::SimplePassword;
+use DateTime::TimeZone;
+use WWW::LiveChat::API;
+
+# process commandline parameters
+my %opts = (id => '', name => '', email => '', login => '');
+my $whandler = $SIG{__WARN__};
+$SIG{__WARN__} = sub {print STDERR "$0: @_";};
+unless (GetOptions (\%opts, 'id=s', 'name=s', 'email=s', 'login=s')) {
+	exit 1;
+}
+$SIG{__WARN__} = $whandler;
+
+my $function;
+
+if (@ARGV) {
+	$function = shift;
+}
+else {
+	$function = 'operators';
+}
+
+my $tz = DateTime::TimeZone->new(name => 'local');
+
+# determine location of configuration file
+my ($conffile, $confparser, $confref, @errors);
+
+$conffile = join('/', File::HomeDir->my_home, '.livechatrc');
+
+# parse configuration file
+
+$confparser = Config::Scoped->new(file => $conffile);
+
+$confref = $confparser->parse->{_GLOBAL};
+
+use Data::Dumper;
+print Dumper($confref);
+
+for (qw/login api_key/) {
+	unless (exists $confref->{$_} && $confref->{$_} =~ /\S/) {
+		push @errors, "Missing value for $_ in configuration file.";
+	}
+}
+
+if (@errors) {
+	for (@errors) {
+		warn $_, "\n";
+	}
+	exit 1;
+}
+
+my $lcapi = WWW::LiveChat::API->new(login => $confref->{login},
+									api_key => $confref->{api_key},
+									timezone => $tz->name);
+
+my (%data, $ops);
+
+if ($opts{name} && ! $opts{id}) {
+	# check whether record exists already
+	$ops = $lcapi->call_function($function);
+	
+	for my $ref (@$ops) {
+		if ($ref->{name} eq $opts{name}) {
+			$opts{id} = $ref->{id};
+		}
+	}
+}
+
+for my $var (qw/name email login/) {
+	if ($opts{$var}) {
+		$data{$var} = $opts{$var};
+	}
+}
+
+if (keys %data) {
+	$data{id} = $opts{id};
+	if ($function eq 'operators'
+		&& ! $opts{id}) {
+		my ($pw, $pwgen);
+
+		$pwgen = Data::SimplePassword->new();
+		$pwgen->make_password(8);
+		$data{password} = $pw;
+	}
+	
+	$ops = $lcapi->call_function($function, $opts{id}, \%data);
+}
+else {
+	$ops = $lcapi->call_function($function, $opts{id});
+}
+
+use Data::Dumper;
+print Dumper($ops);
+
+									
