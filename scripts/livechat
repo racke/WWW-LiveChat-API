@@ -11,10 +11,10 @@ use DateTime::TimeZone;
 use WWW::LiveChat::API;
 
 # process commandline parameters
-my %opts = (id => '', name => '', email => '', login => '');
+my %opts = (id => '', name => '', email => '', login => '', password => '');
 my $whandler = $SIG{__WARN__};
 $SIG{__WARN__} = sub {print STDERR "$0: @_";};
-unless (GetOptions (\%opts, 'id=s', 'name=s', 'email=s', 'login=s')) {
+unless (GetOptions (\%opts, 'id=s', 'name=s', 'email=s', 'login=s', 'password=s')) {
 	exit 1;
 }
 $SIG{__WARN__} = $whandler;
@@ -74,7 +74,7 @@ if ($opts{name} && ! $opts{id}) {
 	}
 }
 
-for my $var (qw/name email login/) {
+for my $var (qw/name email login password/) {
 	if ($opts{$var}) {
 		$data{$var} = $opts{$var};
 	}
@@ -83,7 +83,7 @@ for my $var (qw/name email login/) {
 if (keys %data) {
 	$data{id} = $opts{id};
 	if ($function eq 'operators'
-		&& ! $opts{id}) {
+		&& ! $opts{id} && ! $opts{password}) {
 		my ($pw, $pwgen);
 
 		$pwgen = Data::SimplePassword->new();
