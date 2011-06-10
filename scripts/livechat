@@ -11,14 +11,19 @@ use DateTime::TimeZone;
 use WWW::LiveChat::API;
 
 # process commandline parameters
-my %opts = (id => '', name => '', email => '', login => '', password => '');
+my %opts = (id => '', name => '', 'display-name' => '',
+			email => '', login => '', password => '');
 my $whandler = $SIG{__WARN__};
 $SIG{__WARN__} = sub {print STDERR "$0: @_";};
-unless (GetOptions (\%opts, 'delete', 'id=s', 'name=s', 'email=s',
+unless (GetOptions (\%opts, 'delete', 'id=s', 'name=s',
+					'display-name=s',
+					'email=s',
 					'login=s', 'password=s')) {
 	exit 1;
 }
 $SIG{__WARN__} = $whandler;
+
+$opts{display_name} = delete $opts{'display-name'};
 
 my $function;
 
@@ -74,7 +79,7 @@ if ($opts{login} && ! $opts{id}) {
 	}
 }
 
-for my $var (qw/name email login password/) {
+for my $var (qw/name display_name email login password/) {
 	if ($opts{$var}) {
 		$data{$var} = $opts{$var};
 	}
