@@ -61,13 +61,13 @@ my $lcapi = WWW::LiveChat::API->new(login => $confref->{login},
 
 my (%data, $ops);
 
-if ($opts{name} && ! $opts{id}) {
+if ($opts{login} && ! $opts{id}) {
 	# check whether record exists already
 	$ops = $lcapi->call_function($function);
 
 	if (ref($ops) eq 'ARRAY') {
 		for my $ref (@$ops) {
-			if ($ref->{name} eq $opts{name}) {
+			if ($ref->{login} eq $opts{login}) {
 				$opts{id} = $ref->{id};
 			}
 		}
