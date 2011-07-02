@@ -11,7 +11,7 @@ use JSON;
 
 =head1 NAME
 
-WWW::LiveChat::API - The great new WWW::LiveChat::API!
+WWW::LiveChat::API - LiveChat API implementation.
 
 =head1 VERSION
 
@@ -26,14 +26,20 @@ use constant BASE_URL => 'https://api.livechatinc.com';
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
     use WWW::LiveChat::API;
 
-    my $foo = WWW::LiveChat::API->new();
-    ...
+    my $livechat = WWW::LiveChat::API->new(login => 'racke@linuxia.de',
+                                           api_key => '46e6822d72b9dcb3d994a06fe1fc2c23');
+
+    $livechat->status();
+
+    $livechat->operators();
+
+=head1 DESCRIPTION
+
+This module is a Perl interface to the LiveChat API as defined at
+
+L<< http://www.livechatinc.com/api/ >>.
 
 =head1 CONSTRUCTOR
 
@@ -80,7 +86,7 @@ returns chat status for a particular skill.
 
 Possible return values are: online, offline, callback or expired.
 
-This is documented at http://www.livechatinc.com/api/status/.
+This is documented at L<< http://www.livechatinc.com/api/status/ >>.
 
 =cut
 
@@ -113,6 +119,8 @@ creates an operator and returns operator information.
     $lc_api->operators(44, undef)
 
 deletes an operator.
+
+This is documented at L<< http://www.livechatinc.com/api/operators/ >>.
 
 =cut
 
