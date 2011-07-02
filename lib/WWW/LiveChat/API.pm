@@ -68,6 +68,30 @@ sub new {
 
 =head1 METHODS
 
+=head2 status
+
+    $lc_api->status()
+
+returns chat status.
+
+    $lc_api->status(1)
+
+returns chat status for a particular skill.
+
+Possible return values are: online, offline, callback or expired.
+
+This is documented at http://www.livechatinc.com/api/status/.
+
+=cut
+
+sub status {
+    my ($self, $id) = @_;
+
+    $result = $self->_build_function('status');
+
+    return $result;
+}
+
 =head2 operators
 
     $lc_api->operators()
