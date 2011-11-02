@@ -12,13 +12,14 @@ use WWW::LiveChat::API;
 
 # process commandline parameters
 my %opts = (id => '', name => '', 'display-name' => '',
-			email => '', login => '', password => '');
+	    email => '', login => '', password => '');
+
 my $whandler = $SIG{__WARN__};
 $SIG{__WARN__} = sub {print STDERR "$0: @_";};
-unless (GetOptions (\%opts, 'delete', 'id=s', 'name=s',
-					'display-name=s',
-					'email=s',
-					'login=s', 'password=s')) {
+unless (GetOptions (\%opts, 'chatting', 'debug', 'delete', 'id=s', 
+		    'name=s', 'display-name=s',
+		    'email=s', 'operator=i', 'timezone=s',
+		    'login=s', 'password=s')) {
 	exit 1;
 }
 $SIG{__WARN__} = $whandler;
@@ -28,10 +29,10 @@ $opts{display_name} = delete $opts{'display-name'};
 my $function;
 
 if (@ARGV) {
-	$function = shift;
+    $function = shift;
 }
 else {
-	$function = 'operators';
+    $function = 'operators';
 }
 
 my $tz = DateTime::TimeZone->new(name => 'local');
@@ -48,27 +49,29 @@ $confparser = Config::Scoped->new(file => $conffile);
 $confref = $confparser->parse->{_GLOBAL};
 
 for (qw/login api_key/) {
-	unless (exists $confref->{$_} && $confref->{$_} =~ /\S/) {
-		push @errors, "Missing value for $_ in configuration file.";
-	}
+    unless (exists $confref->{$_} && $confref->{$_} =~ /\S/) {
+	push @errors, "Missing value for $_ in configuration file.";
+    }
 }
 
 if (@errors) {
-	for (@errors) {
-		warn $_, "\n";
-	}
-	exit 1;
+    for (@errors) {
+	warn $_, "\n";
+    }
+    exit 1;
 }
 
 my $lcapi = WWW::LiveChat::API->new(login => $confref->{login},
-									api_key => $confref->{api_key},
-									timezone => $tz->name);
+				    api_key => $confref->{api_key},
+				    timezone => $tz->name,
+				    debug => $opts{debug},
+);
 
 my (%data, $ops);
 
 if ($opts{login} && ! $opts{id}) {
 	# check whether record exists already
-	$ops = $lcapi->call_function($function);
+	$ops = $lcapi->_build_function($function);
 
 	if (ref($ops) eq 'ARRAY') {
 		for my $ref (@$ops) {
@@ -79,30 +82,41 @@ if ($opts{login} && ! $opts{id}) {
 	}
 }
 
-for my $var (qw/name display_name email login password/) {
+for my $var (qw/name display_name email login password operator timezone/) {
 	if ($opts{$var}) {
 		$data{$var} = $opts{$var};
 	}
 }
 
 if ($opts{delete}) {
-	$ops = $lcapi->call_function($function, $opts{id}, undef);
+    $ops = $lcapi->dispatch(function => $function, 
+			    id => $opts{id},
+			    data => undef,
+	);
 }
 elsif (keys %data) {
-	$data{id} = $opts{id};
-	if ($function eq 'operators'
-		&& ! $opts{id} && ! $opts{password}) {
-		my ($pw, $pwgen);
+    my @params = (function => $function);
 
-		$pwgen = Data::SimplePassword->new();
-		$pwgen->make_password(8);
-		$data{password} = $pw;
-	}
+    if ($opts{id}) {
+	push (@params, $opts{id});
+    }
+
+    if ($function eq 'operators'
+	&& ! $opts{id} && ! $opts{password}) {
+	my ($pw, $pwgen);
+
+	$pwgen = Data::SimplePassword->new();
+	$pwgen->make_password(8);
+	$data{password} = $pw;
+    }
 	
-	$ops = $lcapi->call_function($function, $opts{id}, \%data);
+    $ops = $lcapi->dispatch(@params, data => \%data);
 }
 else {
-	$ops = $lcapi->call_function($function, $opts{id});
+    $ops = $lcapi->dispatch(function => $function, 
+			    id => $opts{id},
+			    chatting => $opts{chatting},
+	);
 }
 
 use Data::Dumper;

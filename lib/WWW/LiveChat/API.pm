@@ -62,14 +62,21 @@ the control panel (My profile => LiveChat API key).
 
 Your timezone, e.g. Europe/Vienna.
 
+=back
+
 =cut
 
 sub new {
-	my ($class, $self);
+    my ($class, $self);
 
-	$class = shift;
-	$self = {@_};
-	bless $self, $class;
+    $class = shift;
+    $self = {@_};
+
+    unless ($self->{login} && $self->{api_key}) {
+	die "Login and API key required.";
+    }
+
+    bless $self, $class;
 }
 
 =head1 METHODS
@@ -92,10 +99,11 @@ This is documented at L<< http://www.livechatinc.com/api/status/ >>.
 
 sub status {
     my ($self, $id) = @_;
+    my ($result);
 
-    $result = $self->_build_function('status');
+    $result = $self->_build_function('status', undef, $id);
 
-    return $result;
+    return $result->{status};
 }
 
 =head2 operators
@@ -125,21 +133,79 @@ This is documented at L<< http://www.livechatinc.com/api/operators/ >>.
 =cut
 
 sub operators {
-	my ($self, $id, $data_ref) = @_;
-	my ($result);
+    my ($self, $result);
+    
+    $self = shift;
 
-	$result = $self->_build_function('operators', $id, $data_ref);
+    $result = $self->_build_function('operators', undef, @_);
 
-	return $result;			
+    return $result;			
 }
 
+=head2 skills
+
+    $lc_api->skills()
+
+returns list of skills.
+
+    $lc_api->skills(6)
+
+returns information about single skill.
+
+    $lc_api->skills(undef, {name => 'Chatter'});
+
+adds a skill.
+
+    $lc_api->skills(6, undef)
+
+deletes a skill.
+
+This is documented at L<< http://www.livechatinc.com/api/skills/ >>.
+
+=cut
+
 sub skills {
-	my ($self, $id, $data_ref) = @_;
-	my ($result);
+    my ($self, $result);
 
-	$result = $self->_build_function('skills', $id, $data_ref);
+    $self = shift;
+    $result = $self->_build_function('skills', undef, @_);
 
-	return $result;	
+    return $result;	
+}
+
+=head2 visitors
+
+=cut
+
+sub visitors {
+    my ($self, $chatting) = @_;
+    my ($result);
+
+    $result = $self->_build_function('visitors', 
+				     $chatting ? 'chatting' : undef);
+
+    return $result;
+}
+
+=head2 chats
+
+=cut
+
+sub chats {
+    my ($self, $id, $data_ref) = @_;
+    my ($result);
+
+    $result = $self->_build_function('chats', @_);
+
+    return $result;
+}
+
+=head2 reports
+
+=cut
+
+sub reports {
+    my ($self, $type, $data_ref) = @_;
 }
 
 =head2 request
@@ -147,40 +213,49 @@ sub skills {
 =cut
 	
 sub request {
-	my ($self, $function, $method, $params) = @_;
-	my ($url, @url_frags, $request, $response, $result, $json_return);
+    my ($self, $function, $method, $params, $id) = @_;
+    my ($url, @url_frags, $request, $response, $result, $json_return);
 
-	# compose URL
-	@url_frags = (BASE_URL, $function);
+    # compose URL
+    @url_frags = (BASE_URL, $function);
 	
-	if ($method eq 'DELETE') {
-		if (defined $params->{id}) {
-			push (@url_frags, $params->{id});
-		}
-		$json_return = 0;
+    if ($method eq 'DELETE') {
+	if ($id) {
+	    push (@url_frags, $id);
 	}
-	elsif ($method eq 'GET' || $method eq 'PUT') {
-		if (defined $params->{id}) {
-			push (@url_frags, $params->{id});
-		}
-		$json_return = 1;
+	$json_return = 0;
+    }
+    elsif ($method eq 'GET' || $method eq 'PUT') {
+	if (defined $id) {
+	    push (@url_frags, $id);
 	}
-	else {
-		$json_return = 1;
+	elsif ($params) {
+	    push (@url_frags, $params);
 	}
 
-	$url = join('/', @url_frags);
+	$json_return = 1;
+    }
+    else {
+	$json_return = 1;
+    }
+
+    $url = join('/', @url_frags);
 	
-	$self->{ua} ||= LWP::UserAgent->new(agent => "perl-WWW-LiveChat-API/$VERSION");
+    $self->{ua} ||= LWP::UserAgent->new(agent => "perl-WWW-LiveChat-API/$VERSION");
 
-	# prepare request
-	$request = HTTP::Request->new($method => $url);
+    # prepare request
+    $request = HTTP::Request->new($method => $url);
     $request->authorization_basic($self->{login}, $self->{api_key});
 	
     if (ref($params) eq 'HASH' && keys %$params ) {
         $request->content_type( 'application/x-www-form-urlencoded' );
         $request->content( $self->_build_content( $params ) );
     }
+
+    if ($self->{debug}) {
+	print "LiveChat API request: ", $request->as_string(), "\n";
+    }
+
 
 	$response = $self->{ua}->request($request);
 
@@ -197,60 +272,105 @@ sub request {
 		return $result;
 	}
 	else {
-		print $request->as_string;
 		die 'LiveChat-API request failed (' . $response->code . '): '
 			. $response->message;
 	}
 }
 
-sub call_function {
-	my ($self, $function, $id, $data_ref) = @_;
-	my ($result, %data);
-	
-	if (@_ == 2) {
-		# return list
-		$result = $self->request($function, 'GET');
-	}
-	elsif (@_ == 3) {
-		# detailed information
-		$result = $self->request($function, 'GET', {id => $id});
-	}
-	elsif (@_ == 4) {
-		if ($id) {
-			if (defined $data_ref) {
-				# update
-				%data = %$data_ref;
-				$data{id} = $id;
-				$result = $self->request($function, 'PUT', \%data);
-			}
-			else {
-				# delete
-				$result = $self->request($function, 'DELETE', {id => $id});
-			}
-		}
-		else {
-			# create
-			%data = %$data_ref;
-			$data{id} = $id;
-			$result = $self->request($function, 'POST', \%data);
-		}
-	}
+sub dispatch {
+    my ($self, %args) = @_;
+    my (@params);
 
-	return $result;
+    use Data::Dumper;
+    print "Dispatching: ", Dumper(\%args);
+
+    if (exists $args{id}) {
+	if (exists $args{data}) {
+	    @params = ($args{id}, $args{data});
+	}
+	else {
+	    @params = ($args{id});
+	}
+    }
+
+    if ($args{function} eq 'status') {
+	return $self->status($args{id});
+    }
+    elsif ($args{function} eq 'operators') {
+	if (exists $args{data}) {
+	    return $self->operators($args{id}, $args{data});
+	}
+	else {
+	    return $self->operators($args{id});
+	}
+    }
+    elsif ($args{function} eq 'skills') {
+	return $self->skills(@params);
+    }
+    elsif ($args{function} eq 'visitors') {
+	if ($args{chatting}) {
+	    return $self->visitors(1);
+	}
+	return $self->visitors();
+    }
+    elsif ($args{function} eq 'chats') {
+	return $self->chats(@params);
+    }
+    else {
+	die "Can't dispatch function '$args{function}'.";
+    }
+}
+
+sub _build_function {
+    my ($self, $function, $url_params, $id, $data_ref) = @_;
+    my ($result, %data);
+	
+    use Data::Dumper;
+    print "BF: ", Dumper(\@_);
+
+    if (@_ == 2) {
+	# return list
+	$result = $self->request($function, 'GET');
+    }
+    elsif (@_ == 3) {
+	# return list with URL parameters
+	$result = $self->request($function, 'GET', $url_params);
+    }
+    elsif (@_ == 4) {
+	# detailed information
+	$result = $self->request($function, 'GET', $url_params, $id);
+    }
+    elsif (@_ == 5) {
+	if ($id) {
+	    if (defined $data_ref) {
+		# update
+		%data = %$data_ref;
+		$result = $self->request($function, 'PUT', \%data, $id);
+	    }
+	    else {
+		# delete
+		$result = $self->request($function, 'DELETE', undef, $id);
+	    }
+	}
+	else {
+	    # create
+	    $result = $self->request($function, 'POST', $data_ref);
+	}
+    }
+
+    return $result;
 }
 
 sub _build_content {
-	my ($self, $params) = @_;
-	my (@args, $frag);
+    my ($self, $params) = @_;
+    my (@args, $frag);
 	
-	for my $key (keys %$params) {
-#		next if $key eq 'id';
+    for my $key (keys %$params) {
+	$frag = uri_escape($key) . '=';
 		
-		$frag = uri_escape($key) . '=';
-		
-		if (defined $params->{$key}) {
-			$frag .= uri_escape($params->{$key});
-		}
+	if (defined $params->{$key}) {
+	    $frag .= uri_escape($params->{$key});
+	}
 		
         push @args, $frag;
     }
@@ -259,12 +379,12 @@ sub _build_content {
 }
 
 sub _parse_json {
-	my ($self, $json_ref) = @_;
-	my ($json_struct);
+    my ($self, $json_ref) = @_;
+    my ($json_struct);
 	
-	$json_struct = from_json($$json_ref);
+    $json_struct = from_json($$json_ref);
 
-	return $json_struct;
+    return $json_struct;
 }
 
 =head1 AUTHOR
