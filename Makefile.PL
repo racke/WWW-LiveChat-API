@@ -16,6 +16,7 @@ WriteMakefile(
         'Test::More' => 0,
         'Crypt::SSLeay' => 0,
         'LWP::UserAgent' => 0,
+        'LWP::Protocol::https' => 0,
         'URI::Escape' => 0,
         'JSON' => 0,
     },
