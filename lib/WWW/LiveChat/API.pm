@@ -281,9 +281,6 @@ sub dispatch {
     my ($self, %args) = @_;
     my (@params);
 
-    use Data::Dumper;
-    print "Dispatching: ", Dumper(\%args);
-
     if (exists $args{id}) {
 	if (exists $args{data}) {
 	    @params = ($args{id}, $args{data});
@@ -324,9 +321,6 @@ sub dispatch {
 sub _build_function {
     my ($self, $function, $url_params, $id, $data_ref) = @_;
     my ($result, %data);
-	
-    use Data::Dumper;
-    print "BF: ", Dumper(\@_);
 
     if (@_ == 2) {
 	# return list
