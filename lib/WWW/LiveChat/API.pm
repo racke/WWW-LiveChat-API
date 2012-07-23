@@ -376,7 +376,7 @@ sub _parse_json {
     my ($self, $json_ref) = @_;
     my ($json_struct);
 	
-    $json_struct = from_json($$json_ref);
+    $json_struct = from_json($$json_ref, {utf8 => 1});
 
     return $json_struct;
 }
