@@ -110,7 +110,7 @@ sub status {
 
     $lc_api->operators()
 
-returns list of operators.
+returns reference to list of operators.
 
     $lc_api->operators(44)
 
